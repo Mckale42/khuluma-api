@@ -1,0 +1,28 @@
+# Render Blueprint for the Khuluma REST API (PROG7314 POE Part 2 — The Viltrumites)
+# Deploys the Node/Express/TypeScript service as a cloud-hosted Web Service.
+services:
+  - type: web
+    name: khuluma-api
+    runtime: node
+    region: frankfurt          # closest Render free region to South Africa
+    plan: free
+    branch: main
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_VERSION
+        value: 20.18.0
+      # Secrets below are set in the Render dashboard (not committed):
+      #   MONGODB_URI            - MongoDB Atlas connection string
+      #   FIREBASE_PROJECT_ID    - khuluma-prog7314
+      #   FIREBASE_SERVICE_ACCOUNT - full service-account JSON (single line)
+      #   GEMINI_API_KEY         - Google AI Studio key
+      - key: MONGODB_URI
+        sync: false
+      - key: FIREBASE_PROJECT_ID
+        sync: false
+      - key: FIREBASE_SERVICE_ACCOUNT
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
