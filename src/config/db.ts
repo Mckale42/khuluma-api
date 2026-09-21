@@ -19,4 +19,15 @@ export async function connectDb(): Promise<void> {
 
   await mongoose.connect(env.mongoUri, { dbName: 'khuluma' });
   console.log('[db] connected to MongoDB Atlas');
+
+  // First-run seeding: if the Atlas database has no course content yet, load the
+  // starter isiZulu course, word-of-day and achievements. Idempotent — it only
+  // runs while the collection is empty, so real user data is never overwritten.
+  const { Course } = await import('../models/Course');
+  const courseCount = await Course.estimatedDocumentCount();
+  if (courseCount === 0) {
+    console.log('[db] Atlas empty — seeding starter content');
+    const { seedDatabase } = await import('../scripts/seed');
+    await seedDatabase();
+  }
 }
