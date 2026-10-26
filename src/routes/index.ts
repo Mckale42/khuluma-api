@@ -10,9 +10,19 @@ import leaderboard from './leaderboard';
 import wordOfDay from './wordOfDay';
 import sync from './sync';
 import notifications from './notifications';
+import fetch from 'node-fetch';
+import { checkAudioStorage } from '../services/audioStorage';
 
 const api = Router();
 api.get('/health', (_req, res) => res.json({ status: 'ok', service: 'Khuluma API' }));
+// Public diagnostic: can the API sign a link to a clip in blob storage and fetch it? (pass/fail only, no secrets)
+api.get('/health/audio', async (_req, res) => {
+  const result = await checkAudioStorage('audio/zu/sawubona.mp3', async (url) => {
+    const r = await fetch(url, { method: 'HEAD' });
+    return { status: r.status, contentType: r.headers.get('content-type') || undefined };
+  });
+  res.json(result);
+});
 api.use('/me', me);
 api.use('/courses', courses);
 api.use('/lessons', lessons);

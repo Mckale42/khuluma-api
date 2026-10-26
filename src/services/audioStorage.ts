@@ -80,3 +80,36 @@ export async function resolveAudioUrl(stored: string | undefined | null, signer:
     return '';
   }
 }
+
+export interface AudioHealth {
+  configured: boolean;
+  provider: 'azure' | 'firebase' | 'none';
+  /** Did a signed link to the sample clip actually fetch? (null when storage is not configured) */
+  reachable: boolean | null;
+  httpStatus?: number;
+  contentType?: string;
+  error?: string;
+}
+
+export type HeadFetcher = (url: string) => Promise<{ status: number; contentType?: string }>;
+
+/**
+ * Diagnostic for GET /api/health/audio: signs a link for one known clip and checks that it is really
+ * retrievable. Reports only pass/fail details — never the link, key or account — so it is safe to leave public.
+ */
+export async function checkAudioStorage(
+  sample = 'audio/zu/sawubona.mp3',
+  head: HeadFetcher,
+  env: NodeJS.ProcessEnv = process.env
+): Promise<AudioHealth> {
+  const azure = azureSigner(env);
+  const signer = azure ?? firebaseSigner();
+  const provider = azure ? 'azure' : signer ? 'firebase' : 'none';
+  if (!signer) return { configured: false, provider: 'none', reachable: null };
+  try {
+    const res = await head(await signer(sample));
+    return { configured: true, provider, reachable: res.status === 200, httpStatus: res.status, contentType: res.contentType };
+  } catch (e) {
+    return { configured: true, provider, reachable: false, error: (e as Error).message.slice(0, 120) };
+  }
+}

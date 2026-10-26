@@ -1,4 +1,4 @@
-import { isBlobPath, isSafeAudioPath, resolveAudioUrl, azureSigner } from '../src/services/audioStorage';
+import { isBlobPath, isSafeAudioPath, resolveAudioUrl, azureSigner, checkAudioStorage } from '../src/services/audioStorage';
 
 describe('isBlobPath', () => {
   it('treats object paths as blob paths', () => expect(isBlobPath('audio/zu/sawubona.mp3')).toBe(true));
@@ -47,5 +47,27 @@ describe('azureSigner', () => {
     const signer = azureSigner(env, fixedNow);
     expect(await resolveAudioUrl('audio/zu/yebo.mp3', signer)).toContain('blob.core.windows.net');
     expect(await resolveAudioUrl('audio/../secret.mp3', signer)).toBe('');
+  });
+});
+
+describe('checkAudioStorage', () => {
+  const env = { AZURE_STORAGE_ACCOUNT: 'khulumastore', AZURE_STORAGE_KEY: Buffer.from('not-a-real-key-just-test-bytes!!').toString('base64') } as NodeJS.ProcessEnv;
+
+  it('reports not configured without storage settings', async () => {
+    const r = await checkAudioStorage('audio/zu/a.mp3', async () => ({ status: 200 }), {} as NodeJS.ProcessEnv);
+    expect(r).toEqual({ configured: false, provider: 'none', reachable: null });
+  });
+  it('passes when the signed link returns 200', async () => {
+    const r = await checkAudioStorage('audio/zu/a.mp3', async () => ({ status: 200, contentType: 'audio/mpeg' }), env);
+    expect(r).toMatchObject({ configured: true, provider: 'azure', reachable: true, httpStatus: 200, contentType: 'audio/mpeg' });
+  });
+  it('fails (with the status) when the clip is missing or the key is wrong', async () => {
+    const r = await checkAudioStorage('audio/zu/a.mp3', async () => ({ status: 403 }), env);
+    expect(r).toMatchObject({ reachable: false, httpStatus: 403 });
+  });
+  it('fails cleanly if the request throws, and never echoes the link', async () => {
+    const r = await checkAudioStorage('audio/zu/a.mp3', async (url) => { throw new Error('boom'); }, env);
+    expect(r).toMatchObject({ reachable: false, error: 'boom' });
+    expect(JSON.stringify(r)).not.toContain('sig=');
   });
 });
