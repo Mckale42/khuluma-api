@@ -9,6 +9,7 @@ import ai from './ai';
 import leaderboard from './leaderboard';
 import wordOfDay from './wordOfDay';
 import sync from './sync';
+import notifications from './notifications';
 
 const api = Router();
 api.get('/health', (_req, res) => res.json({ status: 'ok', service: 'Khuluma API' }));
@@ -21,5 +22,6 @@ api.use('/ai', ai);
 api.use('/leaderboard', leaderboard);
 api.use('/word-of-day', wordOfDay);
 api.use('/sync', sync);
+api.use('/notifications', notifications);
 
 export default api;

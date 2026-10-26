@@ -12,3 +12,11 @@ export function weekKey(d: Date = new Date()): string {
   const week = 1 + Math.round(((date.getTime() - firstThursday.getTime()) / 86_400_000 - 3 + ((firstThursday.getUTCDay() + 6) % 7)) / 7);
   return `${date.getUTCFullYear()}-W${String(week).padStart(2, '0')}`;
 }
+
+/** Which entry of a word pool to show on [d]: the UTC day of the year modulo the pool size (same word all day, new word tomorrow). */
+export function wordIndexForDay(d: Date, poolSize: number): number {
+  if (poolSize <= 0) return 0;
+  const start = Date.UTC(d.getUTCFullYear(), 0, 0);
+  const dayOfYear = Math.floor((Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()) - start) / 86_400_000);
+  return dayOfYear % poolSize;
+}

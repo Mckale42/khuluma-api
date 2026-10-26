@@ -9,7 +9,6 @@ import { Course } from '../models/Course';
 import { Lesson } from '../models/Lesson';
 import { WordOfDay } from '../models/WordOfDay';
 import { Achievement } from '../models/Achievement';
-import { dateKey } from '../utils/dates';
 
 export async function seedDatabase(): Promise<void> {
   await Promise.all([Course.deleteMany({}), Lesson.deleteMany({}), WordOfDay.deleteMany({}), Achievement.deleteMany({})]);
@@ -18,7 +17,8 @@ export async function seedDatabase(): Promise<void> {
     lang: 'zu', title: 'isiZulu', comingSoon: false,
     units: [
       { unitId: 'u1', title: 'Greetings', orderIndex: 0 },
-      { unitId: 'u2', title: 'Everyday Basics', orderIndex: 1 }
+      { unitId: 'u2', title: 'Everyday Basics', orderIndex: 1 },
+      { unitId: 'u3', title: 'Listen & Speak', orderIndex: 2 }
     ]
   });
   await Course.create({ lang: 'xh', title: 'isiXhosa', comingSoon: true, units: [] });
@@ -50,15 +50,37 @@ export async function seedDatabase(): Promise<void> {
         { id: 'l3e3', type: 'match', prompt: '"Amanzi" means…', options: ['Water', 'Food', 'House', 'Money'], answer: 'Water', wordId: 'w_amanzi' },
         { id: 'l3e4', type: 'freetext', prompt: 'Translate to English: "Ukudla"', options: [], answer: 'food', wordId: 'w_ukudla' }
       ]
+    },
+    {
+      // Listening practice: the audioUrl is a blob-storage path (upload clips with `npm run upload-audio`);
+      // until a recording exists the phone speaks the `speak` word with its text-to-speech voice.
+      lessonId: 'l4', courseLang: 'zu', unitId: 'u3', title: 'Hear it, say it', orderIndex: 0, xpReward: 25,
+      exercises: [
+        { id: 'l4e1', type: 'listen', prompt: 'Listen. What greeting did you hear?', options: ['Hello', 'Thank you', 'Goodbye', 'Yes'], answer: 'Hello', speak: 'Sawubona', audioUrl: 'audio/zu/sawubona.mp3', wordId: 'w_sawubona' },
+        { id: 'l4e2', type: 'listen', prompt: 'Listen. What did you hear?', options: ['Thank you', 'Water', 'Mother', 'No'], answer: 'Thank you', speak: 'Ngiyabonga', audioUrl: 'audio/zu/ngiyabonga.mp3', wordId: 'w_ngiyabonga' },
+        { id: 'l4e3', type: 'listen', prompt: 'Listen. What does this word mean?', options: ['Water', 'Food', 'House', 'Father'], answer: 'Water', speak: 'Amanzi', audioUrl: 'audio/zu/amanzi.mp3', wordId: 'w_amanzi' },
+        { id: 'l4e4', type: 'listen', prompt: 'Listen and type the English meaning.', options: [], answer: 'yes', speak: 'Yebo', audioUrl: 'audio/zu/yebo.mp3', wordId: 'w_yebo' }
+      ]
     }
   ]);
 
-  await WordOfDay.create({
-    dateKey: dateKey(), lang: 'zu',
-    word: 'Ubuntu', translation: 'humanity / I am because we are',
-    note: 'Ubuntu is a Nguni concept meaning a person is a person through other people — a cornerstone of South African culture.',
-    audioUrl: ''
-  });
+  // A pool of words: GET /word-of-day rotates through them by day of the year, so every learner
+  // gets a fresh word each day without anyone having to seed one daily. (dateKey 'pool-N' never matches a real date.)
+  const pool = [
+    ['Ubuntu', 'humanity / I am because we are', 'Ubuntu is a Nguni concept meaning a person is a person through other people — a cornerstone of South African culture.'],
+    ['Sawubona', 'I see you (hello)', 'Zulu greetings say "I see you": you are acknowledged as a whole person. The reply "Yebo, sawubona" means "Yes, I see you too".'],
+    ['Ngiyabonga', 'thank you', 'Gratitude is part of everyday courtesy; adding "kakhulu" makes it "thank you very much".'],
+    ['Umndeni', 'family', 'Family in Zulu culture reaches far beyond the household — extended relatives are part of umndeni.'],
+    ['Amanzi', 'water', 'Water is central to ceremonies and to daily life; "amanzi" is also heard in many place names.'],
+    ['Ukudla', 'food', 'Sharing ukudla is a mark of hospitality: a visitor is always offered something to eat or drink.'],
+    ['Hamba kahle', 'go well', 'The farewell to the one leaving; the one staying is told "Sala kahle" (stay well).'],
+    ['Umhlaba', 'earth / land', 'Land carries deep meaning: ancestors, belonging and home are all tied to umhlaba.'],
+    ['Ithemba', 'hope', 'Ithemba is a common given name and a theme in songs and sayings.'],
+    ['Injabulo', 'joy', 'Injabulo is shared joy — celebrations in Zulu culture are communal.']
+  ];
+  await WordOfDay.create(pool.map(([word, translation, note], i) => ({
+    dateKey: `pool-${i}`, lang: 'zu', word, translation, note, audioUrl: ''
+  })));
 
   await Achievement.create([
     { code: 'first_xp', title: 'First Steps', description: 'Earned your first XP.', icon: '🌱' },
@@ -68,7 +90,7 @@ export async function seedDatabase(): Promise<void> {
     { code: 'xp_1000', title: 'Fluent Grind', description: 'Earned 1000 XP.', icon: '🏆' }
   ]);
 
-  console.log('[seed] done: 3 courses, 3 lessons, word-of-day, 5 achievements');
+  console.log('[seed] done: 3 courses, 4 lessons, 10 words of the day, 5 achievements');
 }
 
 // CLI entry point.

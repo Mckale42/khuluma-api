@@ -29,7 +29,7 @@ The Android client only handles presentation and (in the POE phase) offline stor
 | Framework | Express 4 + TypeScript |
 | Database | MongoDB Atlas (Mongoose) |
 | Auth | Firebase Authentication (Google SSO), verified with Firebase Admin |
-| AI | Google Gemini (`gemini-1.5-flash`) |
+| AI | Google Gemini (`gemini-2.5-flash`) |
 | Hosting | Azure App Service |
 | Tests / CI | Jest + ts-jest, GitHub Actions |
 

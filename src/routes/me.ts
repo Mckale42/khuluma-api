@@ -3,6 +3,7 @@ import { Router } from 'express';
 import { asyncHandler } from '../utils/asyncHandler';
 import { requireAuth, AuthedRequest } from '../middleware/auth';
 import { ensureUser } from '../services/userService';
+import { HttpError } from '../utils/httpError';
 
 const router = Router();
 
@@ -30,6 +31,28 @@ router.put('/settings', requireAuth, asyncHandler(async (req: AuthedRequest, res
   }
   await user.save();
   res.json({ ok: true, settings: user.settings });
+}));
+
+const MAX_DEVICES = 5;
+
+/** Register this device's FCM token so the API can push reminders to it (FR-10). */
+router.put('/device-token', requireAuth, asyncHandler(async (req: AuthedRequest, res) => {
+  const token = String(req.body?.token || '').trim();
+  if (token.length < 20 || token.length > 4096) throw new HttpError(400, 'A valid FCM token is required.');
+  const user = await ensureUser(req.userId!, req.userName, req.userEmail);
+  const others = user.fcmTokens.filter((t) => t !== token);
+  user.fcmTokens = [...others, token].slice(-MAX_DEVICES); // newest devices win
+  await user.save();
+  res.json({ ok: true, devices: user.fcmTokens.length });
+}));
+
+/** Forget this device's token (sign-out). */
+router.delete('/device-token', requireAuth, asyncHandler(async (req: AuthedRequest, res) => {
+  const token = String(req.body?.token || '').trim();
+  const user = await ensureUser(req.userId!, req.userName, req.userEmail);
+  user.fcmTokens = user.fcmTokens.filter((t) => t !== token);
+  await user.save();
+  res.json({ ok: true, devices: user.fcmTokens.length });
 }));
 
 export default router;

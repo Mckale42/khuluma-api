@@ -17,7 +17,7 @@ export const env = {
   firebaseProjectId: process.env.FIREBASE_PROJECT_ID || '',
   firebaseServiceAccount: process.env.FIREBASE_SERVICE_ACCOUNT || '',
   geminiApiKey: process.env.GEMINI_API_KEY || '',
-  geminiModel: process.env.GEMINI_MODEL || 'gemini-1.5-flash',
+  geminiModel: process.env.GEMINI_MODEL || 'gemini-flash-latest',
   // Auth is bypassed in demo mode, or when AUTH_DEV_BYPASS=true.
   authDevBypass: demoMode || (process.env.AUTH_DEV_BYPASS || 'false').toLowerCase() === 'true'
 };

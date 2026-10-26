@@ -4,5 +4,15 @@ module.exports = {
   testEnvironment: 'node',
   roots: ['<rootDir>/tests'],
   testMatch: ['**/*.test.ts'],
-  clearMocks: true
+  clearMocks: true,
+  transform: {
+    '^.+\\.tsx?$': ['ts-jest', {
+      tsconfig: {
+        target: 'ES2021',
+        module: 'commonjs',
+        esModuleInterop: true,
+        skipLibCheck: true
+      }
+    }]
+  }
 };

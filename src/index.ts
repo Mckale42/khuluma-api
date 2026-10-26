@@ -7,6 +7,7 @@ import { env } from './config/env';
 import { connectDb } from './config/db';
 import api from './routes';
 import { errorHandler } from './middleware/error';
+import { startReminderScheduler } from './services/reminderScheduler';
 
 export function createApp() {
   const app = express();
@@ -26,6 +27,7 @@ async function start() {
   await connectDb();
   const app = createApp();
   app.listen(env.port, () => console.log(`[server] Khuluma API listening on :${env.port}`));
+  if (process.env.REMINDERS_ENABLED === 'true') startReminderScheduler();
 }
 
 // Only auto-start when run directly (tests import createApp without a DB).

@@ -3,18 +3,24 @@ import { Router } from 'express';
 import { asyncHandler } from '../utils/asyncHandler';
 import { requireAuth } from '../middleware/auth';
 import { WordOfDay } from '../models/WordOfDay';
-import { dateKey } from '../utils/dates';
+import { dateKey, wordIndexForDay } from '../utils/dates';
+import { resolveAudioUrl } from '../services/audioStorage';
 
 const router = Router();
 
+async function pickFromPool(lang: string) {
+  const pool = await WordOfDay.find({ lang }).sort({ word: 1 });
+  return pool.length ? pool[wordIndexForDay(new Date(), pool.length)] : null;
+}
+
 router.get('/', requireAuth, asyncHandler(async (req, res) => {
   const lang = (req.query.lang as string) || 'zu';
-  // Prefer today's word; otherwise fall back to the most recent one seeded.
+  // A word dated today wins; otherwise rotate through the pool by day of the year.
   const word =
     (await WordOfDay.findOne({ dateKey: dateKey(), lang })) ||
-    (await WordOfDay.findOne({ lang }).sort({ dateKey: -1 }));
+    (await pickFromPool(lang));
   if (!word) return res.json({ word: null });
-  res.json({ word: word.word, translation: word.translation, note: word.note, audioUrl: word.audioUrl });
+  res.json({ word: word.word, translation: word.translation, note: word.note, audioUrl: await resolveAudioUrl(word.audioUrl) });
 }));
 
 export default router;

@@ -10,15 +10,55 @@ import { HttpError } from '../utils/httpError';
 
 async function generate(prompt: string): Promise<string> {
   if (!env.geminiApiKey) throw new HttpError(503, 'AI is not configured (GEMINI_API_KEY missing).');
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${env.geminiModel}:generateContent?key=${env.geminiApiKey}`;
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
-  });
-  if (!res.ok) throw new HttpError(502, `Gemini request failed (${res.status}).`);
-  const data: any = await res.json();
-  return data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
+
+  // Auto-upgrade if configured model is the retired gemini-1.5-flash
+  const primaryModel = (!env.geminiModel || env.geminiModel === 'gemini-1.5-flash')
+    ? 'gemini-flash-latest'
+    : env.geminiModel;
+
+  const candidateModels = [primaryModel, 'gemini-flash-latest', 'gemini-2.5-flash', 'gemini-2.5-flash-lite'].filter(
+    (m, i, arr) => arr.indexOf(m) === i
+  );
+
+  let lastError = '';
+  let lastStatus = 502;
+
+  for (const model of candidateModels) {
+    try {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${env.geminiApiKey}`;
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+      });
+
+      if (!res.ok) {
+        const errText = await res.text();
+        console.warn(`[Gemini] Request to ${model} failed (${res.status}): ${errText}`);
+        lastStatus = res.status;
+        lastError = errText;
+        // If 404 (model not found / deprecated) or 400, try next candidate model
+        if (res.status === 404 || res.status === 400) {
+          continue;
+        }
+        break;
+      }
+
+      const data: any = await res.json();
+      const parts = data?.candidates?.[0]?.content?.parts || [];
+      const textParts = parts.filter((p: any) => p.text && !p.thought);
+      const text = textParts.length > 0
+        ? textParts.map((p: any) => p.text).join('\n')
+        : parts.map((p: any) => p.text || '').join('\n');
+
+      return text.trim();
+    } catch (err: any) {
+      console.error(`[Gemini] Error contacting ${model}:`, err);
+      lastError = err.message || String(err);
+    }
+  }
+
+  throw new HttpError(502, `Gemini request failed (${lastStatus}): ${lastError}`);
 }
 
 /** AI Buddy conversation tutor, pitched at the learner's level. */
@@ -51,7 +91,9 @@ export async function aiCheckAnswer(
     `Prompt: ${prompt}\nExpected meaning: ${expected}\nLearner wrote: ${userAnswer}`;
   const raw = await generate(p);
   try {
-    const json = JSON.parse(raw.replace(/```json|```/g, '').trim());
+    const jsonMatch = raw.match(/\{[\s\S]*\}/);
+    const jsonStr = jsonMatch ? jsonMatch[0] : raw;
+    const json = JSON.parse(jsonStr);
     return { correct: !!json.correct, feedback: String(json.feedback || '') };
   } catch {
     // Fallback: simple normalised comparison if the model didn't return JSON.

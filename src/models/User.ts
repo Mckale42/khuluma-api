@@ -29,7 +29,9 @@ const userSchema = new Schema(
     level: { type: Number, default: 1 },
     lastActiveDate: { type: Date, default: null },
     achievements: { type: [String], default: [] },     // unlocked achievement codes
-    settings: { type: settingsSchema, default: () => ({}) }
+    settings: { type: settingsSchema, default: () => ({}) },
+    fcmTokens: { type: [String], default: [] },          // FCM registration tokens, one per signed-in device (FR-10)
+    lastReminderDate: { type: String, default: null }     // YYYY-MM-DD of the last streak reminder (max one a day)
   },
   { timestamps: true }
 );

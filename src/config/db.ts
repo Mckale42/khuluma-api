@@ -20,14 +20,28 @@ export async function connectDb(): Promise<void> {
   await mongoose.connect(env.mongoUri, { dbName: 'khuluma' });
   console.log('[db] connected to MongoDB Atlas');
 
-  // First-run seeding: if the Atlas database has no course content yet, load the
-  // starter isiZulu course, word-of-day and achievements. Idempotent — it only
-  // runs while the collection is empty, so real user data is never overwritten.
+  await ensureSeedContent();
+}
+
+/**
+ * Keep the course content current without touching learner data. Seeds the starter isiZulu course when the
+ * database is empty, and re-seeds it once when the database still has the older (pre-Final-POE) content that
+ * lacks the "Listen & Speak" lesson. seedDatabase() only replaces courses, lessons, words of the day and the
+ * achievement catalogue, so users, attempts, reviews and league entries are never overwritten.
+ */
+export async function ensureSeedContent(): Promise<'seeded' | 'upgraded' | 'current'> {
   const { Course } = await import('../models/Course');
-  const courseCount = await Course.estimatedDocumentCount();
-  if (courseCount === 0) {
-    console.log('[db] Atlas empty — seeding starter content');
-    const { seedDatabase } = await import('../scripts/seed');
+  const { Lesson } = await import('../models/Lesson');
+  const { seedDatabase } = await import('../scripts/seed');
+  if ((await Course.estimatedDocumentCount()) === 0) {
+    console.log('[db] empty — seeding starter content');
     await seedDatabase();
+    return 'seeded';
   }
+  if (!(await Lesson.exists({ lessonId: 'l4' }))) {
+    console.log('[db] older course content found — upgrading to the Final POE content (user data is kept)');
+    await seedDatabase();
+    return 'upgraded';
+  }
+  return 'current';
 }

@@ -7,8 +7,11 @@ const attemptSchema = new Schema({
   lessonId: { type: String, default: '' },
   correct: { type: Boolean, required: true },
   responseMs: { type: Number, default: 0 },
-  timestamp: { type: Date, default: Date.now }
+  timestamp: { type: Date, default: Date.now },
+  // Idempotency key for attempts queued offline: replaying the same sync batch twice must not double-count XP.
+  clientId: { type: String, default: undefined }
 });
+attemptSchema.index({ userId: 1, clientId: 1 }, { unique: true, partialFilterExpression: { clientId: { $type: 'string' } } });
 
 export type AttemptDoc = InferSchemaType<typeof attemptSchema>;
 export const Attempt = model('Attempt', attemptSchema);

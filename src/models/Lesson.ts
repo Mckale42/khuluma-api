@@ -12,7 +12,8 @@ const exerciseSchema = new Schema(
     prompt: { type: String, required: true },
     options: { type: [String], default: [] },
     answer: { type: String, required: true },
-    audioUrl: { type: String, default: '' },      // Azure Blob Storage reference
+    audioUrl: { type: String, default: '' },      // blob-storage object path (API swaps it for a signed URL)
+    speak: { type: String, default: '' },         // word to pronounce with the phone's text-to-speech until a clip is recorded
     wordId: { type: String, default: '' }         // links exercise to a vocab item for review
   },
   { _id: false }
